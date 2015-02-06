@@ -331,7 +331,26 @@
                  (let [result (AttributeList.)]
                    (doseq [attr attrs]
                      (.add result (Attribute. attr (.getAttribute _ attr))))
-                   result)))
+                   result))
+  (setAttribute [_ attr]
+                (let [state-update {(keyword (.getName attr)) (.getValue attr)}]
+                    (condp = (type state-ref)
+                        clojure.lang.Agent
+                        (send state-ref (fn [state state-update] (merge state state-update)) state-update)
+
+                        clojure.lang.Atom
+                        (swap! state-ref merge state-update)
+
+                        clojure.lang.Ref
+                        (dosync
+                          (ref-set state-ref (merge @state-ref state-update))))))
+  (setAttributes [_ attrs]
+                 (let [attr-names (map (fn [attr]
+                                           (.setAttribute _ attr)
+                                           (.getName attr))
+                                       attrs)]
+                 (.getAttributes _ (into-array attr-names)))))
+
 
 (defn create-bean
   "Expose a reference as a JMX bean. state-ref should be a Clojure
